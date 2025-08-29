@@ -71,4 +71,4 @@ jobs:
       - name: Deploy to Azure Function App using Core Tools
         run: |
           npm install -g azure-functions-core-tools@4
-          func azure functionapp publish aashi-test-func-app --javascript
+          func azure functionapp publish aashi-test-func-app --javascript --publish-profile ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
