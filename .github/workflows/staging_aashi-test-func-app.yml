@@ -53,11 +53,22 @@ jobs:
         with:
           name: node-app
       
-      - name: 'Run Azure Functions Action'
-        uses: Azure/functions-action@v1
-        id: fa
+      # - name: 'Run Azure Functions Action'
+      #   uses: Azure/functions-action@v1
+        
+      #   id: fa
+      #   with:
+      #     app-name: 'aashi-test-func-app'
+      #     slot-name: 'Production'
+      #     package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+      #     publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_15A8EB709EFA42B5B9FAC35E27D4F7D8 }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
         with:
-          app-name: 'aashi-test-func-app'
-          slot-name: 'Production'
-          package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_15A8EB709EFA42B5B9FAC35E27D4F7D8 }}
+          node-version: '22.x'
+
+      - name: Deploy to Azure Function App using Core Tools
+        run: |
+          npm install -g azure-functions-core-tools@4
+          func azure functionapp publish aashi-test-func-app --javascript
