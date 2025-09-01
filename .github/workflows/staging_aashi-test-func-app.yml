@@ -62,16 +62,3 @@ jobs:
           slot-name: 'Production'
           package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_15A8EB709EFA42B5B9FAC35E27D4F7D8 }}
-
-      # - name: Setup Node
-      #   uses: actions/setup-node@v3
-      #   with:
-      #     node-version: '22.x'
-
-      # - name: Deploy to Azure Function App using Core Tools
-      #   shell: pwsh
-      #   env:
-      #       AZURE_PUBLISH_PROFILE: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
-      #   run: |
-      #     npm install -g azure-functions-core-tools@4
-      #     func azure functionapp publish aashi-test-func-app --javascript --publish-profile $env:AZUREAPPSERVICE_PUBLISHPROFILE 
