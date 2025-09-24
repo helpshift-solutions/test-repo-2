@@ -61,6 +61,17 @@ jobs:
         run: |
           SARIF_FILE="results/javascript.sarif"
 
+          echo "Checking SARIF file at $SARIF_FILE"
+          if [ -f "$SARIF_FILE" ]; then
+            echo "✅ SARIF file exists."
+            echo "Listing results/ directory:"
+            ls -al results/
+            echo "Previewing first 20 lines of SARIF:"
+            head -n 20 "$SARIF_FILE"
+          else
+            echo "❌ SARIF file NOT found!"  
+          fi
+
           if [ -f "$SARIF_FILE" ] && [ "$(jq '.runs[0].results | length' "$SARIF_FILE")" -gt 0 ]; then
             echo "has_findings=true" >> $GITHUB_OUTPUT
             echo "findings_count=$(jq '.runs[0].results | length' "$SARIF_FILE")" >> $GITHUB_OUTPUT
