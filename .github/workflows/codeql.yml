@@ -32,7 +32,8 @@ jobs:
         id: perform_analysis
         uses: github/codeql-action/analyze@v2
         with:
-          output: results
+          output: results # This is the crucial part that saves the SARIF file locally.
+          upload-sarif: false # Explicitly tell CodeQL not to upload the results
 
       # Upload the SARIF file as an artifact to the workflow run
       # This is how you can view the raw results without the GitHub Security tab
@@ -52,7 +53,7 @@ jobs:
           # Check if the SARIF file exists and has any results
           if [ -f "$SARIF_FILE" ] && [ "$(jq '.runs[0].results | length' "$SARIF_FILE")" -gt 0 ]; then
             echo "has_findings=true" >> $GITHUB_OUTPUT
-            echo "findings_count=$(jq '.runs[0].results | length' "$SARIF_FILE")" >> $GITHUB_OUTPUT
+            echo "findings_count=$(jq '.runs[0].results | length' "$SARIF_OUTPUT")" >> $GITHUB_OUTPUT
             
             # Use jq to iterate over the results and format the output
             EMAIL_BODY=$(jq -r '.runs[0].results | .[] | 
