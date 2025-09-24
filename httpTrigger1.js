@@ -6,19 +6,14 @@ app.http("httpTrigger1", {
   handler: async (request, context) => {
     context.log(`Http function processed request for url "${request.url}"`);
 
-    // Get user input
-    const input = request.query.get("input") || (await request.text());
+    // Minimal untrusted input: use environment variable (tainted by CodeQL)
+    const userInput = process.env.USER_INPUT || "1+1";
 
-    if (input) {
-      // BAD: Directly evaluating user-controlled input.
-      // CodeQL should flag this as "Code injection".
-      const result = eval(input);
-
-      return { body: `Result of eval: ${result}` };
-    }
+    // BAD: eval of untrusted input
+    const result = eval(userInput);
 
     return {
-      body: `Hello, world! Please provide an 'input' parameter in the query string or body.`,
+      body: `Result of eval: ${result}`,
     };
   },
 });
