@@ -1,0 +1,78 @@
+name: "CodeQL Analysis and Detailed SendGrid Alert"
+
+on:
+  push:
+    branches: ["main", "staging"]
+  pull_request:
+    branches: ["main", "staging"]
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Install jq to parse the SARIF file
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      # Initialize CodeQL and run the analysis
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript
+
+      - name: Perform CodeQL Analysis
+        id: perform_analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          output: results
+
+      # Parse the SARIF file and build the email body
+      - name: Generate email body from SARIF findings
+        id: create_email_body
+        run: |
+          SARIF_FILE="results/javascript.sarif"
+          if [ -f "$SARIF_FILE" ] && [ "$(jq '.runs[0].results | length' "$SARIF_FILE")" -gt 0 ]; then
+            echo "::set-output name=has_findings::true"
+            echo "::set-output name=findings_count::$(jq '.runs[0].results | length' "$SARIF_FILE")"
+            
+            # Use jq to iterate over the results and format the output
+            EMAIL_BODY=$(jq -r '.runs[0].results | .[] | 
+              "**Rule ID:** \(.ruleId)
+              **Message:** \(.message.text)
+              **Location:** \(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine)
+              **More Info:** \(.ruleId | split("/") | last | "https://codeql.github.com/codeql-query-help/javascript/\(.)/")
+              ---"' "$SARIF_FILE" | sed -e 's/^[ \t]*//' | tr '\n' '\r\n')
+
+            # The body must be a single line for the output to work
+            echo "::set-output name=email_body::$EMAIL_BODY"
+          else
+            echo "::set-output name=has_findings::false"
+          fi
+        shell: bash
+
+      # Send an email with SendGrid if findings exist
+      - name: Send vulnerability alert email
+        if: steps.create_email_body.outputs.has_findings == 'true'
+        uses: peter-evans/sendgrid-action@v2
+        env:
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          # The following environment variables are passed to the SendGrid Action.
+          TO: "your.email@example.com"
+          FROM: "sender@your-verified-domain.com"
+          SUBJECT: "CodeQL Alert: ${{ steps.create_email_body.outputs.findings_count }} new vulnerabilities in ${{ github.repository }}"
+          BODY: |
+            A CodeQL scan found new security vulnerabilities in the ${{ github.repository }} repository.
+
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+
+            Here is a summary of the findings:
+
+            ${{ steps.create_email_body.outputs.email_body }}
