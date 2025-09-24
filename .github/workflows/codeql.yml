@@ -37,7 +37,7 @@ jobs:
       # Upload the SARIF file as an artifact to the workflow run
       # This is how you can view the raw results without the GitHub Security tab
       - name: Upload CodeQL analysis results as a build artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: codeql-results
           path: results/ # The path to the directory containing the SARIF file.
