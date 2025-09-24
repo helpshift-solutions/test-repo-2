@@ -27,20 +27,32 @@ jobs:
         with:
           languages: javascript
 
+      # Perform CodeQL Analysis and save the output to a local file
       - name: Perform CodeQL Analysis
         id: perform_analysis
         uses: github/codeql-action/analyze@v2
         with:
           output: results
 
-      # Parse the SARIF file and build the email body
+      # Upload the SARIF file as an artifact to the workflow run
+      # This is how you can view the raw results without the GitHub Security tab
+      - name: Upload CodeQL analysis results as a build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: codeql-results
+          path: results/ # The path to the directory containing the SARIF file.
+
+      # Since we have the SARIF file locally, we can now parse it.
+      # This step checks for findings and builds the email body.
       - name: Generate email body from SARIF findings
         id: create_email_body
         run: |
           SARIF_FILE="results/javascript.sarif"
+
+          # Check if the SARIF file exists and has any results
           if [ -f "$SARIF_FILE" ] && [ "$(jq '.runs[0].results | length' "$SARIF_FILE")" -gt 0 ]; then
-            echo "::set-output name=has_findings::true"
-            echo "::set-output name=findings_count::$(jq '.runs[0].results | length' "$SARIF_FILE")"
+            echo "has_findings=true" >> $GITHUB_OUTPUT
+            echo "findings_count=$(jq '.runs[0].results | length' "$SARIF_FILE")" >> $GITHUB_OUTPUT
             
             # Use jq to iterate over the results and format the output
             EMAIL_BODY=$(jq -r '.runs[0].results | .[] | 
@@ -51,9 +63,11 @@ jobs:
               ---"' "$SARIF_FILE" | sed -e 's/^[ \t]*//' | tr '\n' '\r\n')
 
             # The body must be a single line for the output to work
-            echo "::set-output name=email_body::$EMAIL_BODY"
+            echo "email_body<<EOF" >> $GITHUB_OUTPUT
+            echo "$EMAIL_BODY" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=has_findings::false"
+            echo "has_findings=false" >> $GITHUB_OUTPUT
           fi
         shell: bash
 
