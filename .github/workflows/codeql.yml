@@ -13,39 +13,49 @@ jobs:
     permissions:
       contents: read
     env:
-      CODEQL_ACTION_DISABLE_UPLOAD: true # 🚀 disable uploading SARIF to GitHub Security tab
+      CODEQL_ACTION_DISABLE_UPLOAD: true # disable uploading SARIF to GitHub Security tab
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Install jq to parse the SARIF file
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      # Initialize CodeQL and run the analysis
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2
         with:
           languages: javascript
           queries: security-extended,security-and-quality
 
-      # Perform CodeQL Analysis and save the output to a local file
       - name: Perform CodeQL Analysis
         id: perform_analysis
         uses: github/codeql-action/analyze@v2
         with:
-          output: results # Store SARIF locally
-          upload: never # extra safeguard
+          output: results
+          upload: never
 
-      # Upload the SARIF file as an artifact to the workflow run
-      - name: Upload CodeQL analysis results as a build artifact
+      - name: Upload CodeQL analysis results as artifact
         uses: actions/upload-artifact@v4
         with:
           name: codeql-results
           path: results/
 
-      # Since we have the SARIF file locally, we can now parse it.
+      # 🔹 New debug step to check SARIF file existence
+      - name: Debug SARIF file
+        run: |
+          SARIF_FILE="results/javascript.sarif"
+          echo "Checking SARIF file at $SARIF_FILE"
+          if [ -f "$SARIF_FILE" ]; then
+            echo "✅ SARIF file exists."
+            echo "Listing results/ directory:"
+            ls -al results/
+            echo "Previewing first 20 lines of SARIF:"
+            head -n 20 "$SARIF_FILE"
+          else
+            echo "❌ SARIF file NOT found!"
+          fi
+
       - name: Generate email body from SARIF findings
         id: create_email_body
         run: |
@@ -70,7 +80,6 @@ jobs:
           fi
         shell: bash
 
-      # Send an email with SendGrid if findings exist
       - name: Send vulnerability alert email
         if: steps.create_email_body.outputs.has_findings == 'true'
         uses: peter-evans/sendgrid-action@v1
