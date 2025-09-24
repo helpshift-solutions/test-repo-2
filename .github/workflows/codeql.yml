@@ -28,6 +28,7 @@ jobs:
         uses: github/codeql-action/init@v2
         with:
           languages: javascript
+          queries: security-extended,security-and-quality
 
       # Perform CodeQL Analysis and save the output to a local file
       - name: Perform CodeQL Analysis
