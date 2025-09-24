@@ -64,8 +64,8 @@ jobs:
         env:
           SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
           # The following environment variables are passed to the SendGrid Action.
-          TO: "your.email@example.com"
-          FROM: "sender@your-verified-domain.com"
+          TO: "ishita.sharma@helpshift.com"
+          FROM: "alerts@ms.helpshift.live"
           SUBJECT: "CodeQL Alert: ${{ steps.create_email_body.outputs.findings_count }} new vulnerabilities in ${{ github.repository }}"
           BODY: |
             A CodeQL scan found new security vulnerabilities in the ${{ github.repository }} repository.
