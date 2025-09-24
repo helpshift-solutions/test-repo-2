@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      CODEQL_ACTION_DISABLE_UPLOAD: true # 🚀 disable uploading SARIF to GitHub Security tab
 
     steps:
       - name: Checkout repository
@@ -32,38 +34,33 @@ jobs:
         id: perform_analysis
         uses: github/codeql-action/analyze@v2
         with:
-          output: results # This is the crucial part that saves the SARIF file locally.
-          upload-sarif: false # Explicitly tell CodeQL not to upload the results
+          output: results # Store SARIF locally
+          upload: never # extra safeguard
 
       # Upload the SARIF file as an artifact to the workflow run
-      # This is how you can view the raw results without the GitHub Security tab
       - name: Upload CodeQL analysis results as a build artifact
         uses: actions/upload-artifact@v4
         with:
           name: codeql-results
-          path: results/ # The path to the directory containing the SARIF file.
+          path: results/
 
       # Since we have the SARIF file locally, we can now parse it.
-      # This step checks for findings and builds the email body.
       - name: Generate email body from SARIF findings
         id: create_email_body
         run: |
           SARIF_FILE="results/javascript.sarif"
 
-          # Check if the SARIF file exists and has any results
           if [ -f "$SARIF_FILE" ] && [ "$(jq '.runs[0].results | length' "$SARIF_FILE")" -gt 0 ]; then
             echo "has_findings=true" >> $GITHUB_OUTPUT
-            echo "findings_count=$(jq '.runs[0].results | length' "$SARIF_OUTPUT")" >> $GITHUB_OUTPUT
-            
-            # Use jq to iterate over the results and format the output
-            EMAIL_BODY=$(jq -r '.runs[0].results | .[] | 
+            echo "findings_count=$(jq '.runs[0].results | length' "$SARIF_FILE")" >> $GITHUB_OUTPUT
+
+            EMAIL_BODY=$(jq -r '.runs[0].results | .[] |
               "**Rule ID:** \(.ruleId)
               **Message:** \(.message.text)
               **Location:** \(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine)
               **More Info:** \(.ruleId | split("/") | last | "https://codeql.github.com/codeql-query-help/javascript/\(.)/")
               ---"' "$SARIF_FILE" | sed -e 's/^[ \t]*//' | tr '\n' '\r\n')
 
-            # The body must be a single line for the output to work
             echo "email_body<<EOF" >> $GITHUB_OUTPUT
             echo "$EMAIL_BODY" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
@@ -78,7 +75,6 @@ jobs:
         uses: peter-evans/sendgrid-action@v1
         env:
           SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
-          # The following environment variables are passed to the SendGrid Action.
           TO: "ishita.sharma@helpshift.com"
           FROM: "alerts@ms.helpshift.live"
           SUBJECT: "CodeQL Alert: ${{ steps.create_email_body.outputs.findings_count }} new vulnerabilities in ${{ github.repository }}"
