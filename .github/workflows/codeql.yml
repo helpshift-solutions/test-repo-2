@@ -60,7 +60,7 @@ jobs:
       # Send an email with SendGrid if findings exist
       - name: Send vulnerability alert email
         if: steps.create_email_body.outputs.has_findings == 'true'
-        uses: peter-evans/sendgrid-action@v2
+        uses: peter-evans/sendgrid-action@v1
         env:
           SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
           # The following environment variables are passed to the SendGrid Action.
