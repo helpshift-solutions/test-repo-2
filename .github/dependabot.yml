@@ -5,5 +5,5 @@ updates:
     schedule:
       interval: "daily"
     target-branch: "ravi-develop"
-    # enable security updates
+    # enable security update
     security-updates: true
