@@ -1,15 +1,9 @@
 version: 2
 updates:
-  - package-ecosystem: "npm" # since you’re on a Node/React frontend
-    directory: "/" # path to package.json (adjust if in subfolder)
-    schedule:
-      interval: "daily" # how often to check
-    target-branch: "ravi-develop"
-    allow:
-      - dependency-type: "direct" # scan only direct deps (optional, can remove)
-
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "daily"
-    target-branch: "main"
+    target-branch: "ravi-develop"
+    # enable security updates
+    security-updates: true
