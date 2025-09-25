@@ -2,9 +2,9 @@ name: "CodeQL Analysis and Detailed SendGrid Alert"
 
 on:
   push:
-    branches: ["main", "staging"]
+    branches: ["main", "staging", "ravi-develop"]
   pull_request:
-    branches: ["main", "staging"]
+    branches: ["main", "staging", "ravi-develop"]
 
 jobs:
   analyze:
