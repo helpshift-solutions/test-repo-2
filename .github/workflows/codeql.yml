@@ -1,0 +1,110 @@
+name: "CodeQL Analysis and Detailed SendGrid Alert"
+
+on:
+  push:
+    branches: ["main", "staging", "ravi-develop"]
+  pull_request:
+    branches: ["main", "staging", "ravi-develop"]
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      CODEQL_ACTION_DISABLE_UPLOAD: true # disable uploading SARIF to GitHub Security tab
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript
+          queries: security-extended,security-and-quality
+
+      - name: Perform CodeQL Analysis
+        id: perform_analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          output: results
+          upload: never
+
+      - name: Upload CodeQL analysis results as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-results
+          path: results/
+
+      # 🔹 New debug step to check SARIF file existence
+      - name: Debug SARIF file
+        run: |
+          SARIF_FILE="results/javascript.sarif"
+          echo "Checking SARIF file at $SARIF_FILE"
+          if [ -f "$SARIF_FILE" ]; then
+            echo "✅ SARIF file exists."
+            echo "Listing results/ directory:"
+            ls -al results/
+            echo "Previewing first 20 lines of SARIF:"
+            head -n 20 "$SARIF_FILE"
+          else
+            echo "❌ SARIF file NOT found!"
+          fi
+
+      - name: Generate email body from SARIF findings
+        id: create_email_body
+        run: |
+          SARIF_FILE="results/javascript.sarif"
+
+          echo "Checking SARIF file at $SARIF_FILE"
+          if [ -f "$SARIF_FILE" ]; then
+            echo "✅ SARIF file exists."
+            echo "Listing results/ directory:"
+            ls -al results/
+            echo "Previewing first 20 lines of SARIF:"
+            head -n 20 "$SARIF_FILE"
+          else
+            echo "❌ SARIF file NOT found!"  
+          fi
+
+          if [ -f "$SARIF_FILE" ] && [ "$(jq '.runs[0].results | length' "$SARIF_FILE")" -gt 0 ]; then
+            echo "has_findings=true" >> $GITHUB_OUTPUT
+            echo "findings_count=$(jq '.runs[0].results | length' "$SARIF_FILE")" >> $GITHUB_OUTPUT
+
+            EMAIL_BODY=$(jq -r '.runs[0].results | .[] |
+              "**Rule ID:** \(.ruleId)
+              **Message:** \(.message.text)
+              **Location:** \(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine)
+              **More Info:** \(.ruleId | split("/") | last | "https://codeql.github.com/codeql-query-help/javascript/\(.)/")
+              ---"' "$SARIF_FILE" | sed -e 's/^[ \t]*//' | tr '\n' '\r\n')
+
+            echo "email_body<<EOF" >> $GITHUB_OUTPUT
+            echo "$EMAIL_BODY" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "has_findings=false" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
+      - name: Send vulnerability alert email
+        if: steps.create_email_body.outputs.has_findings == 'true'
+        uses: peter-evans/sendgrid-action@v1
+        env:
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          TO: "ishita.sharma@helpshift.com"
+          FROM: "alerts@ms.helpshift.live"
+          SUBJECT: "CodeQL Alert: ${{ steps.create_email_body.outputs.findings_count }} new vulnerabilities in ${{ github.repository }}"
+          BODY: |
+            A CodeQL scan found new security vulnerabilities in the ${{ github.repository }} repository.
+
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+
+            Here is a summary of the findings:
+
+            ${{ steps.create_email_body.outputs.email_body }}

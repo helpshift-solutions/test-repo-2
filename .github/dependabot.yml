@@ -1,0 +1,7 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/" # location of package.json
+    schedule:
+      interval: "daily"
+    target-branch: "ravi-develop"
